@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Baraka Sklad — ERP Tizimi</title>
+    
+    <!-- Tailwind CSS (for layout utilities) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom CSS (Premium Style overrides) -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header class="mx-2">
+        <div class="logo-section">
+            <h1 id="app-title">BARAKA SKLAD</h1>
+            <p id="app-subtitle">ERP - Ombor Boshqaruv Tizimi</p>
+        </div>
+        <div id="connection-status" class="status-badge online">
+            <span class="status-dot"></span>
+            <span id="status-text">Online</span>
+        </div>
+    </header>
+
+    <!-- MAIN VIEWS CONTAINER -->
+    <main id="main-content" class="w-full">
+        
+        <!-- ================= DASHBOARD VIEW ================= -->
+        <section id="view-dashboard" class="view-section">
+            <!-- Metrics cards grid -->
+            <div class="metrics-grid">
+                <!-- Kirim Card -->
+                <div class="glass-panel metric-card kirim" id="metric-kirim-card">
+                    <div class="metric-title">🟢 JAMI KIRIM</div>
+                    <div class="metric-value" id="stat-kirim">0 UZS</div>
+                </div>
+                <!-- Chiqim Card -->
+                <div class="glass-panel metric-card chiqim" id="metric-chiqim-card">
+                    <div class="metric-title">🔴 JAMI CHIQIM</div>
+                    <div class="metric-value" id="stat-chiqim">0 UZS</div>
+                </div>
+                <!-- Sof Foyda Card -->
+                <div class="glass-panel metric-card foyda" id="metric-foyda-card">
+                    <div class="metric-title">📈 SOF FOYDA</div>
+                    <div class="metric-value" id="stat-foyda">0 UZS</div>
+                </div>
+                <!-- Sklad Balansi Card -->
+                <div class="glass-panel metric-card qoldiq" id="metric-qoldiq-card">
+                    <div class="metric-title">📦 JAMI TOVARLAR</div>
+                    <div class="metric-value" id="stat-qoldiq">0 dona</div>
+                </div>
+            </div>
+
+            <!-- Daily charts panel -->
+            <div class="glass-panel chart-panel">
+                <div class="chart-header">
+                    <h2 class="chart-title">📊 Haftalik Kirim-Chiqim aylanmasi</h2>
+                </div>
+                <div style="position: relative; height:220px; width:100%">
+                    <canvas id="turnoverChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Widgets Grid: Pie Chart & Debt Leaders -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 mx-2">
+                <!-- Pie Chart Panel -->
+                <div class="glass-panel p-4">
+                    <h3 class="text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider"><i class="fa-solid fa-chart-pie mr-1 text-indigo-400"></i> Mahsulot toifalari ulushi</h3>
+                    <div style="position: relative; height:180px; width:100%" class="flex justify-center items-center">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                <!-- Debt Leaders Panel -->
+                <div class="glass-panel p-4">
+                    <h3 class="text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider"><i class="fa-solid fa-fire mr-1 text-red-400"></i> Top Qarzdor Ustalar</h3>
+                    <div id="top-debtors-list" class="space-y-2.5">
+                        <!-- Dynamic list will load here -->
+                        <div class="text-xs text-slate-500 italic">Qarzdor ustalar aniqlanmadi.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick overview logs / low stock alert list -->
+            <div class="glass-panel p-4 mb-5">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-bold text-slate-200">⚠️ Muhim Xabarnomalar</h3>
+                </div>
+                <div id="low-stock-notifications" class="space-y-2 text-xs">
+                    <!-- Dynamic updates: Low stock warnings will appear here -->
+                    <div class="text-slate-400 italic">Hozircha barcha mahsulotlar yetarli miqdorda.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= STOCKS VIEW ================= -->
+        <section id="view-stocks" class="view-section hidden">
+            <!-- Search, scan & buttons panel -->
+            <div class="glass-panel controls-panel">
+                <div class="search-scanner-row">
+                    <div class="search-input-wrapper">
+                        <input type="text" id="search-query" class="search-input" placeholder="Nomi yoki shtrix-kodi bo'yicha qidirish...">
+                    </div>
+                    <!-- Telegram scanner integration trigger -->
+                    <button id="scan-barcode-btn" class="scan-btn" title="Shtrix-kod skanerlash">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                </div>
+                
+                <!-- Quick action triggers -->
+                <div class="action-buttons-grid">
+                    <button class="action-btn new-prod" onclick="openModal('modal-new-product')">
+                        <i class="fa-solid fa-plus"></i> Yangi Tovar
+                    </button>
+                    <button class="action-btn kirim-btn" onclick="openModal('modal-kirim')">
+                        <i class="fa-solid fa-arrow-down-long"></i> Kirim
+                    </button>
+                    <button class="action-btn chiqim-btn" onclick="openModal('modal-chiqim')">
+                        <i class="fa-solid fa-arrow-up-long"></i> Chiqim
+                    </button>
+                    <button class="action-btn transfer-btn" onclick="openModal('modal-transfer')">
+                        <i class="fa-solid fa-right-left"></i> Transfer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stocks table panel -->
+            <div class="glass-panel table-panel">
+                <div class="table-title-row">
+                    <h2 class="table-title">📦 Ombor Qoldiqlari Ro'yxati</h2>
+                    <!-- Category filter -->
+                    <select id="filter-category" class="bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-300">
+                        <option value="">Barcha toifalar</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="stock-table" id="stock-table-element">
+                        <thead>
+                            <tr>
+                                <th>Tovar nomi</th>
+                                <th>Toifasi</th>
+                                <th>Ombor qoldig'i</th>
+                                <th>Tannarx</th>
+                                <th>Sotish narxi</th>
+                                <th>Holat</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stock-table-body">
+                            <!-- Dynamic rows via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= CUSTOMERS VIEW ================= -->
+        <section id="view-customers" class="view-section hidden">
+            <!-- Add customer panel -->
+            <div class="glass-panel p-4 mb-4 flex justify-between items-center">
+                <div>
+                    <h3 class="text-sm font-bold">👤 Doimiy Ustalar Bazasi</h3>
+                    <p class="text-xs text-slate-400">Balansi manfiy bo'lgan ustalar qarzdor hisoblanadi</p>
+                </div>
+                <button class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-1" onclick="openModal('modal-new-customer')">
+                    <i class="fa-solid fa-user-plus"></i> Usta Qo'shish
+                </button>
+            </div>
+
+            <!-- Customer list panel -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="customers-list-container">
+                <!-- Dynamic customers will load here -->
+            </div>
+        </section>
+
+        <!-- ================= TRANSACTIONS HISTORY VIEW ================= -->
+        <section id="view-history" class="view-section hidden">
+            <div class="glass-panel p-4 mb-4 flex justify-between items-center">
+                <h3 class="text-sm font-bold">📋 Operatsiyalar va Kirim-chiqimlar tarixi</h3>
+                <!-- Excel export download -->
+                <button id="export-excel-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center gap-1">
+                    <i class="fa-regular fa-file-excel"></i> Excel Yuklash
+                </button>
+            </div>
+            
+            <div class="glass-panel p-2 overflow-x-auto">
+                <table class="stock-table w-full text-xs">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Tovar</th>
+                            <th>Amal</th>
+                            <th>Miqdor</th>
+                            <th>Ombor</th>
+                            <th>Summa</th>
+                            <th>Usta / Operator</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transaction-history-body">
+                        <!-- Dynamic transaction rows -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+        <!-- ================= EMPLOYEES VIEW (Admin Only) ================= -->
+        <section id="view-employees" class="view-section hidden admin-only">
+            <!-- Add employee panel -->
+            <div class="glass-panel p-4 mb-4 flex justify-between items-center mx-2">
+                <div>
+                    <h3 class="text-sm font-bold">👤 Sklad ishchilari va Xodimlar boshqaruvi</h3>
+                    <p class="text-xs text-slate-400">Ishchilarga cheklangan ruxsatlar bilan akkaunt kiritish</p>
+                </div>
+                <button class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-1" onclick="openModal('modal-new-employee')">
+                    <i class="fa-solid fa-user-plus"></i> Xodim Qo'shish
+                </button>
+            </div>
+
+            <!-- Employees list panel -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mx-2" id="employees-list-container">
+                <!-- Dynamic employees will load here -->
+            </div>
+        </section>
+        
+    </main>
+
+    <!-- ================= BOTTOM NAVIGATION BAR ================= -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('dashboard')">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Dashboard</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('stocks')">
+            <i class="fa-solid fa-boxes-stacked"></i>
+            <span>Sklad</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('customers')">
+            <i class="fa-solid fa-users"></i>
+            <span>Ustalar</span>
+        </div>
+        <div class="nav-item admin-only" onclick="switchTab('history')">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>Tarix</span>
+        </div>
+        <div class="nav-item admin-only" onclick="switchTab('employees')">
+            <i class="fa-solid fa-user-shield"></i>
+            <span>Ishchilar</span>
+        </div>
+    </nav>
+
+    <!-- ================= MODALS SECTION ================= -->
+
+    <!-- Modal 1: Yangi Mahsulot -->
+    <div id="modal-new-product" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">➕ Yangi Mahsulot Qo'shish</h3>
+                <button class="modal-close" onclick="closeModal('modal-new-product')">&times;</button>
+            </div>
+            <form id="form-new-product" onsubmit="handleNewProduct(event)">
+                <div class="form-group">
+                    <label for="p-barcode">Shtrix-kod</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="p-barcode" class="form-control" required placeholder="Masalan: 4601234567890">
+                        <button type="button" id="scan-barcode-modal-btn" class="bg-indigo-600 px-3 rounded-lg text-white" title="Kamera orqali o'qish">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="p-name">Mahsulot Nomi</label>
+                    <input type="text" id="p-name" class="form-control" required placeholder="Masalan: Sement M-500">
+                </div>
+                <div class="form-group">
+                    <label for="p-category">Toifasi (Kategoriya)</label>
+                    <select id="p-category" class="form-control" required></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label for="p-cost">Tannarxi (UZS)</label>
+                        <input type="number" id="p-cost" class="form-control" required placeholder="65000">
+                    </div>
+                    <div>
+                        <label for="p-price">Sotish Narxi (UZS)</label>
+                        <input type="number" id="p-price" class="form-control" required placeholder="78000">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label for="p-min">Chegara (Minimal qoldiq)</label>
+                        <input type="number" id="p-min" class="form-control" value="10" required>
+                    </div>
+                    <div>
+                        <label for="p-stock">Boshlang'ich Qoldiq</label>
+                        <input type="number" id="p-stock" class="form-control" value="0" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="p-warehouse">Ombor tanlash (Boshlang'ich qoldiq uchun)</label>
+                    <select id="p-warehouse" class="form-control"></select>
+                </div>
+                <button type="submit" class="btn-block">SAQLASH</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 2: Skladga Kirim -->
+    <div id="modal-kirim" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">📥 Skladga Kirim Qilish</h3>
+                <button class="modal-close" onclick="closeModal('modal-kirim')">&times;</button>
+            </div>
+            <form id="form-kirim" onsubmit="handleKirim(event)">
+                <div class="form-group">
+                    <label for="k-product">Mahsulotni tanlang</label>
+                    <select id="k-product" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="k-warehouse">Qabul qiluvchi Ombor</label>
+                    <select id="k-warehouse" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="k-qty">Kirim miqdori</label>
+                    <input type="number" step="any" id="k-qty" class="form-control" required placeholder="Masalan: 100">
+                </div>
+                <button type="submit" class="btn-block bg-emerald-600 hover:bg-emerald-700">KIRIM QILISH</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: Tovarni Chiqim Qilish -->
+    <div id="modal-chiqim" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">❌ Tovarni Chiqim Qilish (Sotish/Spisat)</h3>
+                <button class="modal-close" onclick="closeModal('modal-chiqim')">&times;</button>
+            </div>
+            <form id="form-chiqim" onsubmit="handleChiqim(event)">
+                <div class="form-group">
+                    <label for="c-product">Mahsulotni tanlang</label>
+                    <select id="c-product" class="form-control" required onchange="updateChiqimMaxLimit()"></select>
+                    <span id="c-stock-limit" class="text-xs text-yellow-500 font-semibold block mt-1">Ombordagi joriy qoldiq: 0 ta</span>
+                </div>
+                <div class="form-group">
+                    <label for="c-warehouse">Manba Ombor</label>
+                    <select id="c-warehouse" class="form-control" required onchange="updateChiqimMaxLimit()"></select>
+                </div>
+                <div class="form-group">
+                    <label for="c-type">Chiqim Turi</label>
+                    <select id="c-type" class="form-control" required onchange="toggleCustomerSelect()">
+                        <option value="Chiqim">Sotish (Mijozga chiqim)</option>
+                        <option value="Spisat">Spisat (Yaroqsiz/Buzilgan)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="c-customer-group">
+                    <label for="c-customer">Xaridor (Usta)</label>
+                    <select id="c-customer" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                    <label for="c-qty">Chiqim miqdori</label>
+                    <input type="number" step="any" id="c-qty" class="form-control" required placeholder="Masalan: 50">
+                </div>
+                <button type="submit" class="btn-block bg-red-600 hover:bg-red-700">CHIQIM QILISH</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 4: Skladlararo Transfer -->
+    <div id="modal-transfer" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">🔄 Skladlararo Transfer</h3>
+                <button class="modal-close" onclick="closeModal('modal-transfer')">&times;</button>
+            </div>
+            <form id="form-transfer" onsubmit="handleTransfer(event)">
+                <div class="form-group">
+                    <label for="t-product">Mahsulotni tanlang</label>
+                    <select id="t-product" class="form-control" required onchange="updateTransferMaxLimit()"></select>
+                    <span id="t-stock-limit" class="text-xs text-yellow-500 font-semibold block mt-1">Ombordagi joriy qoldiq: 0 ta</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label for="t-src-warehouse">Yuboruvchi Ombor</label>
+                        <select id="t-src-warehouse" class="form-control" required onchange="updateTransferMaxLimit()"></select>
+                    </div>
+                    <div>
+                        <label for="t-dst-warehouse">Qabul qiluvchi Ombor</label>
+                        <select id="t-dst-warehouse" class="form-control" required></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="t-qty">Transfer miqdori</label>
+                    <input type="number" step="any" id="t-qty" class="form-control" required placeholder="Masalan: 20">
+                </div>
+                <button type="submit" class="btn-block bg-cyan-600 hover:bg-cyan-700">TRANSFER QILISH</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 5: Yangi Usta Qo'shish -->
+    <div id="modal-new-customer" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">👥 Yangi Usta Qo'shish</h3>
+                <button class="modal-close" onclick="closeModal('modal-new-customer')">&times;</button>
+            </div>
+            <form id="form-new-customer" onsubmit="handleNewCustomer(event)">
+                <div class="form-group">
+                    <label for="cust-name">Usta Ismi (F.I.Sh)</label>
+                    <input type="text" id="cust-name" class="form-control" required placeholder="Masalan: Usta Shavkat">
+                </div>
+                <div class="form-group">
+                    <label for="cust-phone">Telefon Raqami</label>
+                    <input type="tel" id="cust-phone" class="form-control" placeholder="Masalan: +998901234567">
+                </div>
+                <button type="submit" class="btn-block">QO'SHISH</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 6: Yangi Xodim Qo'shish (Admin Only) -->
+    <div id="modal-new-employee" class="modal-overlay admin-only">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">👤 Yangi Ishchi Qo'shish</h3>
+                <button class="modal-close" onclick="closeModal('modal-new-employee')">&times;</button>
+            </div>
+            <form id="form-new-employee" onsubmit="handleNewEmployee(event)">
+                <div class="form-group">
+                    <label for="emp-tg-id">Telegram ID</label>
+                    <input type="number" id="emp-tg-id" class="form-control" required placeholder="Masalan: 123456789">
+                </div>
+                <div class="form-group">
+                    <label for="emp-name">Xodim F.I.Sh</label>
+                    <input type="text" id="emp-name" class="form-control" required placeholder="Masalan: Dilshod Rahimov">
+                </div>
+                <div class="form-group">
+                    <label for="emp-username">Telegram Username</label>
+                    <input type="text" id="emp-username" class="form-control" placeholder="Masalan: dilshod_sklad">
+                </div>
+                <div class="form-group">
+                    <label for="emp-role">Tizimdagi Roli</label>
+                    <select id="emp-role" class="form-control" required>
+                        <option value="Skladchi">Skladchi (Cheklangan ruxsat)</option>
+                        <option value="Admin">Admin (To'liq boshqaruv)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-block">RO'YXATGA OLISH</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Action Drawer for Barcode Quick Actions -->
+    <div id="barcode-drawer" class="barcode-drawer-overlay" onclick="toggleBarcodeDrawer(false)">
+        <div class="barcode-drawer-content" onclick="event.stopPropagation()">
+            <div class="barcode-drawer-header">
+                <div>
+                    <h3 class="font-bold text-slate-100 text-sm" id="drawer-product-name">Sement M-500</h3>
+                    <p class="text-xs text-indigo-400 font-mono mt-0.5" id="drawer-product-barcode">Barcode: 4601234567890</p>
+                </div>
+                <button class="modal-close text-slate-400" onclick="toggleBarcodeDrawer(false)">&times;</button>
+            </div>
+            <div class="p-2 space-y-3.5">
+                <div class="flex justify-between items-center text-xs border-b border-slate-800 pb-2">
+                    <span class="text-slate-400 font-semibold">Ombordagi umumiy qoldiq:</span>
+                    <span class="font-bold text-emerald-400 font-mono text-sm" id="drawer-product-stock">150 ta</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2.5 pt-1">
+                    <button class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold py-3 rounded-xl flex flex-col items-center gap-1.5 justify-center active:scale-95 transition-all" onclick="triggerDrawerAction('kirim')">
+                        <i class="fa-solid fa-arrow-down-long text-base"></i>
+                        <span>Kirim</span>
+                    </button>
+                    <button class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold py-3 rounded-xl flex flex-col items-center gap-1.5 justify-center active:scale-95 transition-all" onclick="triggerDrawerAction('chiqim')">
+                        <i class="fa-solid fa-arrow-up-long text-base"></i>
+                        <span>Chiqim</span>
+                    </button>
+                    <button class="bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold py-3 rounded-xl flex flex-col items-center gap-1.5 justify-center active:scale-95 transition-all" onclick="triggerDrawerAction('transfer')">
+                        <i class="fa-solid fa-right-left text-base"></i>
+                        <span>Transfer</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Xabar matni</span>
+    </div>
+
+    <!-- Dynamic JavaScript file -->
+    <script src="app.js"></script>
+</body>
+</html>
